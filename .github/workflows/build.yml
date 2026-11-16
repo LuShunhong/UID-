@@ -1,9 +1,9 @@
 name: Build UID- Module
 
 on:
-  workflow_dispatch: # 允许在网页上手动点击按钮触发构建
+  workflow_dispatch:
   push:
-    branches: [ main ] # 当你修改代码推送到 main 分支时自动构建
+    branches: [ main ]
 
 jobs:
   build:
@@ -20,15 +20,12 @@ jobs:
 
       - name: 3. 安装指定版本 Android NDK (27.3.13750724)
         run: |
-          # 使用 GitHub 云端预装的 sdkmanager 安装项目指定的 NDK 版本
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
           $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;27.3.13750724"
 
       - name: 4. 执行构建脚本
-        env:
-          # 指定 NDK 根目录环境变量供 build.py 识别
-          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.3.13750724
         run: |
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/27.3.13750724"
           python tools/uid-seccomp-module/build.py --module-only
 
       - name: 5. 上传构建产物
