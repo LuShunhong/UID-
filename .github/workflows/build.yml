@@ -7,41 +7,37 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest # 切换为云端 Windows 环境以匹配 build.py 中的 .exe 工具链
 
     steps:
       - name: 1. 检出源码
         uses: actions/checkout@v4
 
-      - name: 2. 配置 Python 3.10+ 环境
+      - name: 2. 配置 Python 3.11 环境
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: 3. 安装指定版本 Android NDK (27.3.13750724)
+        shell: pwsh
         run: |
-          SDK_DIR="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
-          yes | "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-          "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" "ndk;27.3.13750724"
-          echo "SDK_DIR=$SDK_DIR" >> $GITHUB_ENV
-          echo "NDK_DIR=$SDK_DIR/ndk/27.3.13750724" >> $GITHUB_ENV
+          $sdk = $env:ANDROID_HOME
+          if (-not $sdk) { $sdk = "C:\Android\android-sdk" }
+          $sdkmanager = "$sdk\cmdline-tools\latest\bin\sdkmanager.bat"
+          
+          # 接受协议并安装 Windows 版 NDK 27.3.13750724
+          echo y | & $sdkmanager --licenses | Out-Null
+          & $sdkmanager "ndk;27.3.13750724"
+          
+          # 写入环境变量供后续步骤使用
+          "ANDROID_NDK_HOME=$sdk\ndk\27.3.13750724" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: 4. 检查环境与构建脚本
-        run: |
-          echo "=== 检查 NDK 目录内容 ==="
-          ls -la "$NDK_DIR"
-          echo "=== 查看 build.py 如何检测 NDK ==="
-          head -n 80 tools/uid-seccomp-module/build.py
-
-      - name: 5. 执行构建脚本
-        env:
-          ANDROID_HOME: ${{ env.SDK_DIR }}
-          ANDROID_SDK_ROOT: ${{ env.SDK_DIR }}
-          ANDROID_NDK_HOME: ${{ env.NDK_DIR }}
+      - name: 4. 执行构建脚本
+        shell: pwsh
         run: |
           python tools/uid-seccomp-module/build.py --module-only
 
-      - name: 6. 上传构建产物
+      - name: 5. 上传构建产物
         uses: actions/upload-artifact@v4
         with:
           name: UID-Seccomp-Module
