@@ -1,0 +1,39 @@
+name: Build UID- Module
+
+on:
+  workflow_dispatch: # 允许在网页上手动点击按钮触发构建
+  push:
+    branches: [ main ] # 当你修改代码推送到 main 分支时自动构建
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. 检出源码
+        uses: actions/checkout@v4
+
+      - name: 2. 配置 Python 3.10+ 环境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 3. 安装指定版本 Android NDK (27.3.13750724)
+        run: |
+          # 使用 GitHub 云端预装的 sdkmanager 安装项目指定的 NDK 版本
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;27.3.13750724"
+
+      - name: 4. 执行构建脚本
+        env:
+          # 指定 NDK 根目录环境变量供 build.py 识别
+          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.3.13750724
+        run: |
+          python tools/uid-seccomp-module/build.py --module-only
+
+      - name: 5. 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: UID-Seccomp-Module
+          path: build/**/*.zip*
+          if-no-files-found: error
