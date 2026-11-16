@@ -20,15 +20,28 @@ jobs:
 
       - name: 3. 安装指定版本 Android NDK (27.3.13750724)
         run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;27.3.13750724"
+          SDK_DIR="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          yes | "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" "ndk;27.3.13750724"
+          echo "SDK_DIR=$SDK_DIR" >> $GITHUB_ENV
+          echo "NDK_DIR=$SDK_DIR/ndk/27.3.13750724" >> $GITHUB_ENV
 
-      - name: 4. 执行构建脚本
+      - name: 4. 检查环境与构建脚本
         run: |
-          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/27.3.13750724"
+          echo "=== 检查 NDK 目录内容 ==="
+          ls -la "$NDK_DIR"
+          echo "=== 查看 build.py 如何检测 NDK ==="
+          head -n 80 tools/uid-seccomp-module/build.py
+
+      - name: 5. 执行构建脚本
+        env:
+          ANDROID_HOME: ${{ env.SDK_DIR }}
+          ANDROID_SDK_ROOT: ${{ env.SDK_DIR }}
+          ANDROID_NDK_HOME: ${{ env.NDK_DIR }}
+        run: |
           python tools/uid-seccomp-module/build.py --module-only
 
-      - name: 5. 上传构建产物
+      - name: 6. 上传构建产物
         uses: actions/upload-artifact@v4
         with:
           name: UID-Seccomp-Module
